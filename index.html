@@ -34,6 +34,10 @@
             <strong id="topShareMetric">10%</strong>
           </div>
           <div>
+            <span>Top 10 stability</span>
+            <strong id="stabilityMetric">1:100% · 10:100% · 20:100%</strong>
+          </div>
+          <div>
             <span>Events</span>
             <strong id="eventMetric">0</strong>
           </div>
@@ -71,16 +75,26 @@
             <div class="mode-tabs" role="tablist" aria-label="Event mode">
               <button id="manualModeButton" class="active" type="button">Manual</button>
               <button id="randomModeButton" type="button">Random</button>
+              <button id="habitModeButton" type="button">Habit</button>
             </div>
-            <p class="microcopy">Select cows in the graph, then create an event. Two or more cows are needed.</p>
+            <p class="microcopy">Manual uses selected cows. Random and Habit generate events with Step or Play.</p>
             <div class="event-actions">
               <button id="createEventButton" class="primary-button" type="button">Create Event</button>
               <button id="clearSelectionButton" type="button">Clear</button>
+            </div>
+            <div class="event-actions">
+              <button id="clusterButton" type="button">Cluster</button>
+              <button id="resetLayoutButton" type="button">Reset Map</button>
             </div>
             <label>
               <span>Random group size</span>
               <input id="groupSizeInput" type="range" min="2" max="14" step="1" value="5">
               <output id="groupSizeValue">5</output>
+            </label>
+            <label>
+              <span>Repeat-collab propensity</span>
+              <input id="propensityInput" type="range" min="0" max="1" step="0.05" value="0.65">
+              <output id="propensityValue">0.65</output>
             </label>
           </section>
 

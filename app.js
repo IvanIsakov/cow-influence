@@ -11,8 +11,15 @@ const state = {
   time: 0,
   events: [],
   running: false,
-  randomMode: false,
+  mode: "manual",
   timer: null,
+  layoutMode: "fixed",
+  topTenHistory: [],
+  topTenStability: {
+    1: 1,
+    10: 1,
+    20: 1,
+  },
 };
 
 const controls = {
@@ -21,25 +28,31 @@ const controls = {
   resetButton: document.querySelector("#resetButton"),
   createEventButton: document.querySelector("#createEventButton"),
   clearSelectionButton: document.querySelector("#clearSelectionButton"),
+  clusterButton: document.querySelector("#clusterButton"),
+  resetLayoutButton: document.querySelector("#resetLayoutButton"),
   manualModeButton: document.querySelector("#manualModeButton"),
   randomModeButton: document.querySelector("#randomModeButton"),
+  habitModeButton: document.querySelector("#habitModeButton"),
   forgetfulnessInput: document.querySelector("#forgetfulnessInput"),
   tirednessInput: document.querySelector("#tirednessInput"),
   recoveryInput: document.querySelector("#recoveryInput"),
   intensityInput: document.querySelector("#intensityInput"),
   groupSizeInput: document.querySelector("#groupSizeInput"),
+  propensityInput: document.querySelector("#propensityInput"),
 };
 
 const outputs = {
   timeMetric: document.querySelector("#timeMetric"),
   powerMetric: document.querySelector("#powerMetric"),
   topShareMetric: document.querySelector("#topShareMetric"),
+  stabilityMetric: document.querySelector("#stabilityMetric"),
   eventMetric: document.querySelector("#eventMetric"),
   forgetfulnessValue: document.querySelector("#forgetfulnessValue"),
   tirednessValue: document.querySelector("#tirednessValue"),
   recoveryValue: document.querySelector("#recoveryValue"),
   intensityValue: document.querySelector("#intensityValue"),
   groupSizeValue: document.querySelector("#groupSizeValue"),
+  propensityValue: document.querySelector("#propensityValue"),
   selectedList: document.querySelector("#selectedList"),
   rankingList: document.querySelector("#rankingList"),
   eventLog: document.querySelector("#eventLog"),
@@ -55,6 +68,7 @@ function modelSettings() {
     recovery: Number(controls.recoveryInput.value),
     intensity: Number(controls.intensityInput.value),
     groupSize: Number(controls.groupSizeInput.value),
+    propensity: Number(controls.propensityInput.value),
   };
 }
 
@@ -70,8 +84,8 @@ function initialize() {
       activity: 0.78 + Math.random() * 0.44,
       x: 0.5 + Math.cos(angle) * ring,
       y: 0.5 + Math.sin(angle) * ring,
-      vx: 0,
-      vy: 0,
+      homeX: 0.5 + Math.cos(angle) * ring,
+      homeY: 0.5 + Math.sin(angle) * ring,
       collaborations: 0,
     };
   });
@@ -79,6 +93,14 @@ function initialize() {
   state.selected.clear();
   state.time = 0;
   state.events = [];
+  state.layoutMode = "fixed";
+  setMode("manual");
+  state.topTenHistory = [currentTopTenIds()];
+  state.topTenStability = {
+    1: 1,
+    10: 1,
+    20: 1,
+  };
   stopSimulation();
   render();
 }
@@ -92,15 +114,25 @@ function stepSimulation() {
     cow.energy = Math.min(MAX_ENERGY, cow.energy + settings.recovery);
   }
 
-  if (state.randomMode) {
-    createRandomEvent();
+  if (state.mode === "random") {
+    createRandomEvent({ trackStability: false, renderAfter: false });
+  } else if (state.mode === "habit") {
+    createHabitEvent({ trackStability: false, renderAfter: false });
   }
 
-  tickLayout(16);
+  recordTopTenStability();
+  if (state.layoutMode === "clustered") {
+    clusterByCollaborations();
+  }
   render();
 }
 
-function createEvent(participantIds, source = "manual") {
+function createEvent(participantIds, source = "manual", options = {}) {
+  const settingsForEvent = {
+    trackStability: true,
+    renderAfter: true,
+    ...options,
+  };
   const uniqueIds = [...new Set(participantIds)].filter((id) => state.cows[id]);
   if (uniqueIds.length < 2) {
     return false;
@@ -143,17 +175,21 @@ function createEvent(participantIds, source = "manual") {
   });
   state.events = state.events.slice(0, 36);
   state.selected.clear();
-  tickLayout(24);
-  render();
+  if (settingsForEvent.trackStability) {
+    recordTopTenStability();
+  }
+  if (settingsForEvent.renderAfter) {
+    if (state.layoutMode === "clustered") {
+      clusterByCollaborations();
+    }
+    render();
+  }
   return true;
 }
 
-function createRandomEvent() {
+function createRandomEvent(options = {}) {
   const settings = modelSettings();
-  const weighted = state.cows.map((cow) => ({
-    id: cow.id,
-    weight: 0.55 + cow.energy + Math.sqrt(cow.power) * 0.08,
-  }));
+  const weighted = state.cows.map((cow) => participantCandidate(cow, 0, 1));
   const ids = [];
   while (ids.length < settings.groupSize && weighted.length) {
     const total = weighted.reduce((sum, item) => sum + item.weight, 0);
@@ -164,7 +200,174 @@ function createRandomEvent() {
     });
     ids.push(weighted.splice(Math.max(0, index), 1)[0].id);
   }
-  createEvent(ids, "random");
+  createEvent(ids, "random", options);
+}
+
+function createHabitEvent(options = {}) {
+  const settings = modelSettings();
+  const ids = [];
+  const seed = weightedPick(state.cows.map((cow) => participantCandidate(cow, 0, 1 - settings.propensity)));
+  if (seed === null) {
+    return false;
+  }
+  ids.push(seed);
+
+  while (ids.length < settings.groupSize) {
+    const candidates = state.cows
+      .filter((cow) => !ids.includes(cow.id))
+      .map((cow) => participantCandidate(cow, recentPartnerScore(cow.id, ids) * settings.propensity, 1 - settings.propensity));
+    const picked = weightedPick(candidates);
+    if (picked === null) {
+      break;
+    }
+    ids.push(picked);
+  }
+
+  return createEvent(ids, "habit", options);
+}
+
+function participantCandidate(cow, partnerAffinity, curiosity) {
+  const energyGate = Math.pow(cow.energy, 2.4);
+  return {
+    id: cow.id,
+    weight: energyGate * (0.08 + curiosity + Math.sqrt(cow.power) * 0.05 + partnerAffinity),
+  };
+}
+
+function recentPartnerScore(candidateId, selectedIds) {
+  const recentEvents = state.events.slice(0, 5);
+  let score = 0;
+  for (const event of recentEvents) {
+    if (!event.participants.includes(candidateId)) {
+      continue;
+    }
+    const sharedSelectedCount = selectedIds.filter((id) => event.participants.includes(id)).length;
+    score += sharedSelectedCount;
+  }
+  return score;
+}
+
+function weightedPick(candidates) {
+  const available = candidates.filter((item) => item.weight > 0.0001);
+  if (!available.length) {
+    return null;
+  }
+  const total = available.reduce((sum, item) => sum + item.weight, 0);
+  let pick = Math.random() * total;
+  const selected = available.find((item) => {
+    pick -= item.weight;
+    return pick <= 0;
+  });
+  return (selected || available[available.length - 1]).id;
+}
+
+function resetLayout() {
+  state.layoutMode = "fixed";
+  for (const cow of state.cows) {
+    cow.x = cow.homeX;
+    cow.y = cow.homeY;
+  }
+  renderNetwork();
+}
+
+function clusterByCollaborations() {
+  state.layoutMode = "clustered";
+  const positions = state.cows.map((cow) => ({
+    id: cow.id,
+    x: cow.x,
+    y: cow.y,
+    vx: 0,
+    vy: 0,
+  }));
+  const edges = [...state.edges.values()];
+
+  if (!edges.length) {
+    resetLayout();
+    return;
+  }
+
+  for (let iteration = 0; iteration < 180; iteration += 1) {
+    for (const edge of edges) {
+      const source = positions[edge.source];
+      const target = positions[edge.target];
+      const dx = target.x - source.x;
+      const dy = target.y - source.y;
+      const distance = Math.hypot(dx, dy) || 0.001;
+      const desired = Math.max(0.055, 0.19 - Math.min(0.13, edge.weight * 0.012));
+      const strength = Math.min(0.018, 0.004 + edge.weight * 0.0018);
+      const force = (distance - desired) * strength;
+      const fx = (dx / distance) * force;
+      const fy = (dy / distance) * force;
+      source.vx += fx;
+      source.vy += fy;
+      target.vx -= fx;
+      target.vy -= fy;
+    }
+
+    for (let i = 0; i < positions.length; i += 1) {
+      for (let j = i + 1; j < positions.length; j += 1) {
+        const a = positions[i];
+        const b = positions[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const distance = Math.hypot(dx, dy) || 0.001;
+        const force = 0.00009 / Math.max(0.002, distance * distance);
+        const fx = (dx / distance) * force;
+        const fy = (dy / distance) * force;
+        a.vx -= fx;
+        a.vy -= fy;
+        b.vx += fx;
+        b.vy += fy;
+      }
+    }
+
+    for (const position of positions) {
+      position.vx += (0.5 - position.x) * 0.002;
+      position.vy += (0.5 - position.y) * 0.002;
+      position.x = clamp(position.x + position.vx, 0.06, 0.94);
+      position.y = clamp(position.y + position.vy, 0.07, 0.93);
+      position.vx *= 0.82;
+      position.vy *= 0.82;
+    }
+  }
+
+  for (const position of positions) {
+    state.cows[position.id].x = position.x;
+    state.cows[position.id].y = position.y;
+  }
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function currentTopTenIds() {
+  return [...state.cows]
+    .sort((a, b) => b.power - a.power)
+    .slice(0, 10)
+    .map((cow) => cow.id);
+}
+
+function recordTopTenStability() {
+  const current = currentTopTenIds();
+  state.topTenHistory.push(current);
+  state.topTenHistory = state.topTenHistory.slice(-21);
+  state.topTenStability = {
+    1: topTenOverlap(current, topTenSnapshotAgo(1)),
+    10: topTenOverlap(current, topTenSnapshotAgo(10)),
+    20: topTenOverlap(current, topTenSnapshotAgo(20)),
+  };
+}
+
+function topTenSnapshotAgo(stepsAgo) {
+  const index = state.topTenHistory.length - 1 - stepsAgo;
+  return state.topTenHistory[Math.max(0, index)] || currentTopTenIds();
+}
+
+function topTenOverlap(current, past) {
+  const currentSet = new Set(current);
+  const retained = past.filter((id) => currentSet.has(id)).length;
+  return retained / 10;
 }
 
 function edgeKey(a, b) {
@@ -186,7 +389,7 @@ function startSimulation() {
   }
   state.running = true;
   controls.playButton.textContent = "Pause";
-  state.timer = window.setInterval(stepSimulation, 820);
+  state.timer = window.setInterval(stepSimulation, 200);
 }
 
 function stopSimulation() {
@@ -213,6 +416,7 @@ function syncOutputs() {
   outputs.recoveryValue.textContent = settings.recovery.toFixed(2);
   outputs.intensityValue.textContent = settings.intensity.toFixed(2);
   outputs.groupSizeValue.textContent = String(settings.groupSize);
+  outputs.propensityValue.textContent = settings.propensity.toFixed(2);
 
   const totalPower = state.cows.reduce((sum, cow) => sum + cow.power, 0);
   const topFive = [...state.cows].sort((a, b) => b.power - a.power).slice(0, 5);
@@ -221,6 +425,7 @@ function syncOutputs() {
   outputs.timeMetric.textContent = String(state.time);
   outputs.powerMetric.textContent = totalPower.toFixed(1);
   outputs.topShareMetric.textContent = `${Math.round(topShare * 100)}%`;
+  outputs.stabilityMetric.textContent = `1:${formatPercent(state.topTenStability[1])} · 10:${formatPercent(state.topTenStability[10])} · 20:${formatPercent(state.topTenStability[20])}`;
   outputs.eventMetric.textContent = String(state.events.length);
 
   if (state.selected.size === 0) {
@@ -230,6 +435,10 @@ function syncOutputs() {
       .map((id) => `<span class="selected-chip">${state.cows[id].name}</span>`)
       .join("");
   }
+}
+
+function formatPercent(value) {
+  return `${Math.round(value * 100)}%`;
 }
 
 function renderNetwork() {
@@ -400,57 +609,6 @@ function renderChart() {
   context.fillText("high power", width - padding - 66, height - 5);
 }
 
-function tickLayout(iterations) {
-  const edges = [...state.edges.values()];
-  for (let iteration = 0; iteration < iterations; iteration += 1) {
-    for (const edge of edges) {
-      const source = state.cows[edge.source];
-      const target = state.cows[edge.target];
-      const dx = target.x - source.x;
-      const dy = target.y - source.y;
-      const distance = Math.hypot(dx, dy) || 0.001;
-      const desired = 0.12 + Math.max(0, 0.08 - edge.weight * 0.002);
-      const force = (distance - desired) * 0.008 * Math.min(6, edge.weight);
-      const fx = (dx / distance) * force;
-      const fy = (dy / distance) * force;
-      source.vx += fx;
-      source.vy += fy;
-      target.vx -= fx;
-      target.vy -= fy;
-    }
-
-    for (let i = 0; i < state.cows.length; i += 1) {
-      for (let j = i + 1; j < state.cows.length; j += 1) {
-        const a = state.cows[i];
-        const b = state.cows[j];
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const distance = Math.hypot(dx, dy) || 0.001;
-        const force = 0.00022 / (distance * distance);
-        const fx = (dx / distance) * force;
-        const fy = (dy / distance) * force;
-        a.vx -= fx;
-        a.vy -= fy;
-        b.vx += fx;
-        b.vy += fy;
-      }
-    }
-
-    for (const cow of state.cows) {
-      cow.vx += (0.5 - cow.x) * 0.002;
-      cow.vy += (0.5 - cow.y) * 0.002;
-      cow.x = clamp(cow.x + cow.vx, 0.045, 0.955);
-      cow.y = clamp(cow.y + cow.vy, 0.06, 0.94);
-      cow.vx *= 0.82;
-      cow.vy *= 0.82;
-    }
-  }
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
 controls.playButton.addEventListener("click", () => {
   if (state.running) {
     stopSimulation();
@@ -466,18 +624,22 @@ controls.clearSelectionButton.addEventListener("click", () => {
   state.selected.clear();
   render();
 });
-
-controls.manualModeButton.addEventListener("click", () => {
-  state.randomMode = false;
-  controls.manualModeButton.classList.add("active");
-  controls.randomModeButton.classList.remove("active");
+controls.clusterButton.addEventListener("click", () => {
+  clusterByCollaborations();
+  renderNetwork();
 });
+controls.resetLayoutButton.addEventListener("click", resetLayout);
 
-controls.randomModeButton.addEventListener("click", () => {
-  state.randomMode = true;
-  controls.randomModeButton.classList.add("active");
-  controls.manualModeButton.classList.remove("active");
-});
+controls.manualModeButton.addEventListener("click", () => setMode("manual"));
+controls.randomModeButton.addEventListener("click", () => setMode("random"));
+controls.habitModeButton.addEventListener("click", () => setMode("habit"));
+
+function setMode(mode) {
+  state.mode = mode;
+  controls.manualModeButton.classList.toggle("active", mode === "manual");
+  controls.randomModeButton.classList.toggle("active", mode === "random");
+  controls.habitModeButton.classList.toggle("active", mode === "habit");
+}
 
 for (const input of [
   controls.forgetfulnessInput,
@@ -485,6 +647,7 @@ for (const input of [
   controls.recoveryInput,
   controls.intensityInput,
   controls.groupSizeInput,
+  controls.propensityInput,
 ]) {
   input.addEventListener("input", render);
 }

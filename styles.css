@@ -110,7 +110,7 @@ button:hover {
 
 .metric-strip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(90px, 1fr));
+  grid-template-columns: repeat(5, minmax(90px, 1fr));
   gap: 8px;
 }
 
@@ -183,7 +183,7 @@ output {
 
 .mode-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   padding: 3px;
   border: 1px solid var(--line);
   border-radius: 8px;
