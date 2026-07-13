@@ -1,8 +1,8 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const inputFile = path.join(__dirname, "sweep-results-intensity-0-18.csv");
-const outputFile = path.join(__dirname, "parameter-graphs-log10-totalpower-intensity-0-18.html");
+const inputFile = path.join(__dirname, "sweep-results-noactivity-intensity-0-18.csv");
+const outputFile = path.join(__dirname, "parameter-graphs-log10-totalpower-noactivity-intensity-0-18.html");
 
 const rows = readCsv(inputFile).map((row) => ({
   ...row,
@@ -107,7 +107,7 @@ function html(data) {
 <body>
   <main>
     <h1>Cow Influence Parameter Graphs</h1>
-    <p>High-intensity sweep, including runaway overflow regimes. Axes are forgetfulness, tiredness, and group size. Color shows log10(totalPower), so explosive influence growth remains visible without flattening the rest of the data.</p>
+    <p>High-intensity sweep with activity removed, including runaway overflow regimes. Axes are forgetfulness, tiredness, and group size. Color shows log10(totalPower), so explosive influence growth remains visible without flattening the rest of the data.</p>
 
     <div class="controls">
       <label>Mode

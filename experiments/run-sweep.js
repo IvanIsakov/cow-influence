@@ -9,8 +9,8 @@ const REPEATS = 1;
 const DEFAULT_INTENSITY = 0.18;
 
 const ranges = {
-  forgetfulness: [0, 0.18],
-  tiredness: [0, 0.22],
+  forgetfulness: [0, 0.5],
+  tiredness: [0, 0.5],
   recovery: [0, 0.2],
   groupSize: [2, 14],
   propensity: [0, 1],
@@ -89,8 +89,8 @@ function runSweep() {
 
   rows.sort((a, b) => a.oligarchyScore - b.oligarchyScore);
   const intensityLabel = String(DEFAULT_INTENSITY).replace(".", "-");
-  const csvPath = path.join(outputDir, `sweep-results-intensity-${intensityLabel}.csv`);
-  const reportPath = path.join(outputDir, `sweep-report-intensity-${intensityLabel}.html`);
+  const csvPath = path.join(outputDir, `sweep-results-noactivity-intensity-${intensityLabel}.csv`);
+  const reportPath = path.join(outputDir, `sweep-report-noactivity-intensity-${intensityLabel}.html`);
   fs.writeFileSync(csvPath, toCsv(rows));
   fs.writeFileSync(reportPath, reportHtml(rows, simulationIndex));
 
