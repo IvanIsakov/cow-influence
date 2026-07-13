@@ -81,7 +81,6 @@ function initialize() {
       name: `Cow ${String(index + 1).padStart(2, "0")}`,
       power: BASE_POWER,
       energy: MAX_ENERGY,
-      activity: 0.78 + Math.random() * 0.44,
       x: 0.5 + Math.cos(angle) * ring,
       y: 0.5 + Math.sin(angle) * ring,
       homeX: 0.5 + Math.cos(angle) * ring,
@@ -147,7 +146,7 @@ function createEvent(participantIds, source = "manual", options = {}) {
     const collaboratorPower = uniqueIds.reduce((sum, collaboratorId) => {
       return collaboratorId === id ? sum : sum + powersBefore.get(collaboratorId);
     }, 0);
-    const gain = settings.intensity * cow.activity * cow.energy * collaboratorPower;
+    const gain = settings.intensity * cow.energy * collaboratorPower;
     gains.set(id, gain);
   }
 
@@ -535,7 +534,6 @@ function showTooltip(event, cow) {
     <strong>${cow.name}</strong><br>
     Power: ${cow.power.toFixed(2)}<br>
     Energy: ${Math.round(cow.energy * 100)}%<br>
-    Activity: ${cow.activity.toFixed(2)}<br>
     Events: ${cow.collaborations}
   `;
 }

@@ -48,7 +48,7 @@
         <div>
           <h2>How The Model Works</h2>
           <p>
-            A cow gains influence by being active with collaborators. Recent collaboration matters more than old collaboration,
+            A cow gains influence by collaborating with other cows. Recent collaboration matters more than old collaboration,
             and tired cows participate less effectively and are less likely to join automatic events.
           </p>
         </div>
@@ -58,8 +58,6 @@
             <span class="math-line">P<sub>m</sub>(t<sub>0</sub>) = P<sub>base</sub> +</span>
             <span class="math-integral">∫<sub>0</sub><sup>t<sub>0</sub></sup></span>
             <span class="math-line">
-              A<sub>m</sub>(t)
-              ·
               <span class="math-sum">∑<sub>c ∈ M<sub>m</sub>(t)</sub></span>
               P<sub>c</sub>(t)
               · exp[-λ(t<sub>0</sub> - t)]
@@ -68,13 +66,12 @@
           </div>
           <div class="simulation-formula" aria-label="Simulation update formula">
             <span>In each event step:</span>
-            <strong>ΔP<sub>m</sub> = I · A<sub>m</sub> · E<sub>m</sub> · ∑<sub>c ∈ event, c ≠ m</sub> P<sub>c</sub></strong>
+            <strong>ΔP<sub>m</sub> = I · E<sub>m</sub> · ∑<sub>c ∈ event, c ≠ m</sub> P<sub>c</sub></strong>
             <strong>E<sub>m,next</sub> = min(1, E<sub>m</sub> + recovery) - tiredness if cow m joins</strong>
             <strong>P<sub>m,next</sub> = P<sub>base</sub> + (P<sub>m</sub> - P<sub>base</sub>) · exp(-λ) + ΔP<sub>m</sub></strong>
           </div>
           <dl class="formula-terms">
             <div><dt>P<sub>m</sub>(t<sub>0</sub>)</dt><dd>power of cow m now</dd></div>
-            <div><dt>A<sub>m</sub>(t)</dt><dd>activity of cow m during an event</dd></div>
             <div><dt>M<sub>m</sub>(t)</dt><dd>cows collaborating with cow m at time t</dd></div>
             <div><dt>P<sub>c</sub>(t)</dt><dd>power of each collaborator cow</dd></div>
             <div><dt>λ</dt><dd>forgetfulness: how fast old influence fades</dd></div>

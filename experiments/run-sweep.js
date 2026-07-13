@@ -120,7 +120,6 @@ function simulate(params) {
     id,
     power: BASE_POWER,
     energy: MAX_ENERGY,
-    activity: 0.78 + rng() * 0.44,
     collaborations: 0,
   }));
   const events = [];
@@ -257,7 +256,7 @@ function applyEvent(cows, events, participantIds, params, time) {
     const collaboratorPower = uniqueIds.reduce((sum, collaboratorId) => {
       return collaboratorId === id ? sum : sum + powersBefore.get(collaboratorId);
     }, 0);
-    gains.set(id, params.intensity * cow.activity * cow.energy * collaboratorPower);
+    gains.set(id, params.intensity * cow.energy * collaboratorPower);
   }
 
   for (const id of uniqueIds) {
