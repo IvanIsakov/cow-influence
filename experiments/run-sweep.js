@@ -12,7 +12,7 @@ const ranges = {
   forgetfulness: [0, 0.5],
   tiredness: [0, 0.5],
   recovery: [0, 0.2],
-  groupSize: [2, 14],
+  groupSize: [2, 50],
   propensity: [0, 1],
 };
 

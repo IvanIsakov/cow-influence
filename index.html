@@ -38,6 +38,10 @@
             <strong id="stabilityMetric">1:100% | 10:100% | 20:100%</strong>
           </div>
           <div>
+            <span class="help-term" tabindex="0" data-help="The average power of the 5 strongest cows divided by the average power of the 5 weakest cows. Higher values mean a larger power gap.">Top/Bottom 5 ratio</span>
+            <strong id="powerRatioMetric">1.0x</strong>
+          </div>
+          <div>
             <span class="help-term" tabindex="0" data-help="The number of collaboration events currently stored in the simulation history.">Events</span>
             <strong id="eventMetric">0</strong>
           </div>
@@ -127,8 +131,8 @@
               <button id="resetLayoutButton" type="button">Reset Map</button>
             </div>
             <label>
-              <span class="help-term" tabindex="0" data-help="How many cows are chosen for each automatic collaboration event.">Random group size</span>
-              <input id="groupSizeInput" type="range" min="2" max="14" step="1" value="5">
+              <span class="help-term" tabindex="0" data-help="How many cows are chosen for each automatic collaboration event. Minimum 2, because collaboration needs at least two cows.">Random group size</span>
+              <input id="groupSizeInput" type="range" min="2" max="50" step="1" value="5">
               <output id="groupSizeValue">5</output>
             </label>
             <label>

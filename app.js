@@ -46,6 +46,7 @@ const outputs = {
   powerMetric: document.querySelector("#powerMetric"),
   topShareMetric: document.querySelector("#topShareMetric"),
   stabilityMetric: document.querySelector("#stabilityMetric"),
+  powerRatioMetric: document.querySelector("#powerRatioMetric"),
   eventMetric: document.querySelector("#eventMetric"),
   forgetfulnessValue: document.querySelector("#forgetfulnessValue"),
   tirednessValue: document.querySelector("#tirednessValue"),
@@ -188,6 +189,9 @@ function createEvent(participantIds, source = "manual", options = {}) {
 
 function createRandomEvent(options = {}) {
   const settings = modelSettings();
+  if (settings.groupSize < 2) {
+    return false;
+  }
   const weighted = state.cows.map((cow) => participantCandidate(cow, 0, 1));
   const ids = [];
   while (ids.length < settings.groupSize && weighted.length) {
@@ -204,6 +208,9 @@ function createRandomEvent(options = {}) {
 
 function createHabitEvent(options = {}) {
   const settings = modelSettings();
+  if (settings.groupSize < 2) {
+    return false;
+  }
   const ids = [];
   const seed = weightedPick(state.cows.map((cow) => participantCandidate(cow, 0, 1 - settings.propensity)));
   if (seed === null) {
@@ -418,13 +425,19 @@ function syncOutputs() {
   outputs.propensityValue.textContent = settings.propensity.toFixed(2);
 
   const totalPower = state.cows.reduce((sum, cow) => sum + cow.power, 0);
-  const topFive = [...state.cows].sort((a, b) => b.power - a.power).slice(0, 5);
+  const sortedByPower = [...state.cows].sort((a, b) => b.power - a.power);
+  const topFive = sortedByPower.slice(0, 5);
+  const bottomFive = sortedByPower.slice(-5);
   const topShare = topFive.reduce((sum, cow) => sum + cow.power, 0) / Math.max(1, totalPower);
+  const topFiveAverage = topFive.reduce((sum, cow) => sum + cow.power, 0) / topFive.length;
+  const bottomFiveAverage = bottomFive.reduce((sum, cow) => sum + cow.power, 0) / bottomFive.length;
+  const topBottomRatio = topFiveAverage / Math.max(0.000001, bottomFiveAverage);
 
   outputs.timeMetric.textContent = String(state.time);
-  outputs.powerMetric.textContent = totalPower.toFixed(1);
+  outputs.powerMetric.textContent = formatLargeNumber(totalPower);
   outputs.topShareMetric.textContent = `${Math.round(topShare * 100)}%`;
   outputs.stabilityMetric.textContent = `1:${formatPercent(state.topTenStability[1])} | 10:${formatPercent(state.topTenStability[10])} | 20:${formatPercent(state.topTenStability[20])}`;
+  outputs.powerRatioMetric.textContent = `${formatLargeNumber(topBottomRatio)}x`;
   outputs.eventMetric.textContent = String(state.events.length);
 
   if (state.selected.size === 0) {
@@ -438,6 +451,18 @@ function syncOutputs() {
 
 function formatPercent(value) {
   return `${Math.round(value * 100)}%`;
+}
+
+function formatLargeNumber(value) {
+  if (!Number.isFinite(value)) {
+    return "overflow";
+  }
+  if (Math.abs(value) < 1000) {
+    return value.toFixed(1);
+  }
+  const exponent = Math.floor(Math.log10(Math.abs(value)));
+  const mantissa = value / 10 ** exponent;
+  return `${mantissa.toFixed(1)}x10^${exponent}`;
 }
 
 function renderNetwork() {
