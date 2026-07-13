@@ -56,7 +56,7 @@ button:hover {
 
 .app-shell {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   gap: 16px;
   width: min(1520px, 100%);
   min-height: 100vh;
@@ -65,6 +65,7 @@ button:hover {
 }
 
 .toolbar,
+.model-intro,
 .control-panel,
 .insight-panel {
   border: 1px solid var(--line);
@@ -94,10 +95,147 @@ button:hover {
 }
 
 .identity p,
-.microcopy {
+.microcopy,
+.model-intro p {
   margin: 7px 0 0;
   color: var(--muted);
   line-height: 1.4;
+}
+
+.model-intro {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(480px, 1.2fr);
+  gap: 18px;
+  align-items: center;
+  border-radius: 8px;
+  padding: 16px 18px;
+}
+
+.model-intro h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.formula-card {
+  border-left: 3px solid var(--accent);
+  padding-left: 14px;
+}
+
+.formula-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.math-formula {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-family: ui-serif, Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.math-integral,
+.math-sum {
+  display: inline-flex;
+  align-items: center;
+  font-size: 1.45em;
+}
+
+.simulation-formula {
+  display: grid;
+  gap: 5px;
+  margin-top: 12px;
+  border-top: 1px solid rgba(217, 209, 192, 0.85);
+  padding-top: 10px;
+}
+
+.simulation-formula span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.simulation-formula strong {
+  font-family: ui-serif, Georgia, "Times New Roman", serif;
+  font-size: 0.94rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.formula-terms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 8px 14px;
+  margin: 12px 0 0;
+}
+
+.formula-terms div {
+  display: grid;
+  grid-template-columns: minmax(72px, auto) 1fr;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.formula-terms dt {
+  color: var(--ink);
+  font-family: ui-serif, Georgia, "Times New Roman", serif;
+  font-weight: 700;
+}
+
+.formula-terms dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.help-term {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 4px;
+  outline: 0;
+  cursor: help;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+
+.help-term::after {
+  content: attr(data-help);
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  z-index: 20;
+  width: min(280px, 78vw);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--ink);
+  background: rgba(255, 253, 247, 0.99);
+  box-shadow: var(--shadow);
+  font-size: 0.84rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-transform: none;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.help-term:hover::after,
+.help-term:focus::after,
+.help-term:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .run-controls,
@@ -320,6 +458,7 @@ output {
 
 @media (max-width: 1100px) {
   .toolbar,
+  .model-intro,
   .workspace {
     grid-template-columns: 1fr;
   }
@@ -341,6 +480,19 @@ output {
 
   .toolbar {
     padding: 14px;
+  }
+
+  .model-intro {
+    padding: 14px;
+  }
+
+  .math-formula,
+  .simulation-formula strong {
+    font-size: 0.82rem;
+  }
+
+  .formula-terms {
+    grid-template-columns: 1fr;
   }
 
   .metric-strip {

@@ -425,7 +425,7 @@ function syncOutputs() {
   outputs.timeMetric.textContent = String(state.time);
   outputs.powerMetric.textContent = totalPower.toFixed(1);
   outputs.topShareMetric.textContent = `${Math.round(topShare * 100)}%`;
-  outputs.stabilityMetric.textContent = `1:${formatPercent(state.topTenStability[1])} · 10:${formatPercent(state.topTenStability[10])} · 20:${formatPercent(state.topTenStability[20])}`;
+  outputs.stabilityMetric.textContent = `1:${formatPercent(state.topTenStability[1])} | 10:${formatPercent(state.topTenStability[10])} | 20:${formatPercent(state.topTenStability[20])}`;
   outputs.eventMetric.textContent = String(state.events.length);
 
   if (state.selected.size === 0) {

@@ -11,7 +11,7 @@
       <section class="toolbar" aria-label="Simulation controls">
         <div class="identity">
           <h1>Cow Influence</h1>
-          <p>Collaborative power dynamics for 50 cows</p>
+          <p>Collaborative power dynamics of 50 cows</p>
         </div>
 
         <div class="run-controls">
@@ -22,25 +22,68 @@
 
         <div class="metric-strip" aria-live="polite">
           <div>
-            <span>Time</span>
+            <span class="help-term" tabindex="0" data-help="The current simulation step. Each step applies forgetting, recovery, and possibly one collaboration event.">Time</span>
             <strong id="timeMetric">0</strong>
           </div>
           <div>
-            <span>Total power</span>
+            <span class="help-term" tabindex="0" data-help="The sum of influence power across all cows. It shows how much influence exists in the whole community.">Total power</span>
             <strong id="powerMetric">50.0</strong>
           </div>
           <div>
-            <span>Top 5 share</span>
+            <span class="help-term" tabindex="0" data-help="The percentage of total community power held by the 5 strongest cows. Higher values mean influence is more concentrated.">Top 5 share</span>
             <strong id="topShareMetric">10%</strong>
           </div>
           <div>
-            <span>Top 10 stability</span>
-            <strong id="stabilityMetric">1:100% · 10:100% · 20:100%</strong>
+            <span class="help-term" tabindex="0" data-help="How many cows remain in the top 10 compared with 1, 10, and 20 steps ago. High stability means the same cows keep power.">Top 10 stability</span>
+            <strong id="stabilityMetric">1:100% | 10:100% | 20:100%</strong>
           </div>
           <div>
-            <span>Events</span>
+            <span class="help-term" tabindex="0" data-help="The number of collaboration events currently stored in the simulation history.">Events</span>
             <strong id="eventMetric">0</strong>
           </div>
+        </div>
+      </section>
+
+      <section class="model-intro" aria-label="Model description">
+        <div>
+          <h2>How The Model Works</h2>
+          <p>
+            A cow gains influence by being active with collaborators. Recent collaboration matters more than old collaboration,
+            and tired cows participate less effectively and are less likely to join automatic events.
+          </p>
+        </div>
+        <div class="formula-card">
+          <span>Main formula</span>
+          <div class="math-formula" aria-label="Main influence formula">
+            <span class="math-line">P<sub>m</sub>(t<sub>0</sub>) = P<sub>base</sub> +</span>
+            <span class="math-integral">∫<sub>0</sub><sup>t<sub>0</sub></sup></span>
+            <span class="math-line">
+              A<sub>m</sub>(t)
+              ·
+              <span class="math-sum">∑<sub>c ∈ M<sub>m</sub>(t)</sub></span>
+              P<sub>c</sub>(t)
+              · exp[-λ(t<sub>0</sub> - t)]
+              · T<sub>m</sub>(t) dt
+            </span>
+          </div>
+          <div class="simulation-formula" aria-label="Simulation update formula">
+            <span>In each event step:</span>
+            <strong>ΔP<sub>m</sub> = I · A<sub>m</sub> · E<sub>m</sub> · ∑<sub>c ∈ event, c ≠ m</sub> P<sub>c</sub></strong>
+            <strong>E<sub>m,next</sub> = min(1, E<sub>m</sub> + recovery) - tiredness if cow m joins</strong>
+            <strong>P<sub>m,next</sub> = P<sub>base</sub> + (P<sub>m</sub> - P<sub>base</sub>) · exp(-λ) + ΔP<sub>m</sub></strong>
+          </div>
+          <dl class="formula-terms">
+            <div><dt>P<sub>m</sub>(t<sub>0</sub>)</dt><dd>power of cow m now</dd></div>
+            <div><dt>A<sub>m</sub>(t)</dt><dd>activity of cow m during an event</dd></div>
+            <div><dt>M<sub>m</sub>(t)</dt><dd>cows collaborating with cow m at time t</dd></div>
+            <div><dt>P<sub>c</sub>(t)</dt><dd>power of each collaborator cow</dd></div>
+            <div><dt>λ</dt><dd>forgetfulness: how fast old influence fades</dd></div>
+            <div><dt>T<sub>m</sub>(t)</dt><dd>energy/tiredness factor, from 0 to 1</dd></div>
+            <div><dt>I</dt><dd>event intensity multiplier</dd></div>
+            <div><dt>E<sub>m</sub></dt><dd>current energy of cow m</dd></div>
+            <div><dt>Recovery</dt><dd>energy restored to cows between steps</dd></div>
+            <div><dt>Tiredness</dt><dd>energy lost after joining an event</dd></div>
+          </dl>
         </div>
       </section>
 
@@ -49,22 +92,22 @@
           <section class="panel-section">
             <h2>Model</h2>
             <label>
-              <span>Forgetfulness</span>
-              <input id="forgetfulnessInput" type="range" min="0" max="0.18" step="0.005" value="0.045">
+              <span class="help-term" tabindex="0" data-help="This is lambda in the formula. In each step, old accumulated power decays by exp(-lambda). Higher values make old influence fade faster.">Forgetfulness</span>
+              <input id="forgetfulnessInput" type="range" min="0" max="0.5" step="0.005" value="0.045">
               <output id="forgetfulnessValue">0.045</output>
             </label>
             <label>
-              <span>Tiredness cost</span>
-              <input id="tirednessInput" type="range" min="0" max="0.22" step="0.01" value="0.07">
+              <span class="help-term" tabindex="0" data-help="This reduces T_m(t), the cow's energy factor. After a cow collaborates, energy falls by this amount; tired cows gain less and are less likely to be picked automatically.">Tiredness cost</span>
+              <input id="tirednessInput" type="range" min="0" max="0.5" step="0.01" value="0.07">
               <output id="tirednessValue">0.07</output>
             </label>
             <label>
-              <span>Recovery</span>
+              <span class="help-term" tabindex="0" data-help="This restores T_m(t), the energy factor, between steps. Higher recovery lets cows collaborate again sooner.">Recovery</span>
               <input id="recoveryInput" type="range" min="0" max="0.2" step="0.01" value="0.05">
               <output id="recoveryValue">0.05</output>
             </label>
             <label>
-              <span>Event intensity</span>
+              <span class="help-term" tabindex="0" data-help="This is the event multiplier in the simulation version of the formula. Higher intensity makes each collaboration produce more new power.">Event intensity</span>
               <input id="intensityInput" type="range" min="0.01" max="0.18" step="0.01" value="0.06">
               <output id="intensityValue">0.06</output>
             </label>
@@ -87,12 +130,12 @@
               <button id="resetLayoutButton" type="button">Reset Map</button>
             </div>
             <label>
-              <span>Random group size</span>
+              <span class="help-term" tabindex="0" data-help="How many cows are chosen for each automatic collaboration event.">Random group size</span>
               <input id="groupSizeInput" type="range" min="2" max="14" step="1" value="5">
               <output id="groupSizeValue">5</output>
             </label>
             <label>
-              <span>Repeat-collab propensity</span>
+              <span class="help-term" tabindex="0" data-help="In Habit mode, this controls how strongly cows prefer collaborators from recent events. 0 means exploratory; 1 means strongly repetitive.">Repeat-collab propensity</span>
               <input id="propensityInput" type="range" min="0" max="1" step="0.05" value="0.65">
               <output id="propensityValue">0.65</output>
             </label>
