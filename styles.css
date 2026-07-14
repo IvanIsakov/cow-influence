@@ -28,11 +28,16 @@ body {
 }
 
 button,
+.button-link,
 input {
   font: inherit;
 }
 
-button {
+button,
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 38px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -40,10 +45,12 @@ button {
   color: var(--ink);
   background: #fffaf0;
   cursor: pointer;
+  text-decoration: none;
   transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
 }
 
-button:hover {
+button:hover,
+.button-link:hover {
   border-color: var(--accent);
   transform: translateY(-1px);
 }

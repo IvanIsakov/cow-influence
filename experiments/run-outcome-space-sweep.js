@@ -19,6 +19,20 @@ const csvPath = path.join(__dirname, `outcome-space-sweep-group2-20-${STEPS}step
 const htmlPath = path.join(__dirname, `outcome-space-plot-group2-20-${STEPS}steps.html`);
 
 function main() {
+  if (process.env.PLOT_ONLY === "1") {
+    if (!fs.existsSync(csvPath)) {
+      console.error(`CSV not found: ${csvPath}`);
+      console.error("Run the sweep first, or set STEPS to match an existing CSV.");
+      process.exitCode = 1;
+      return;
+    }
+    const rows = readCsv(csvPath);
+    fs.writeFileSync(htmlPath, reportHtml(rows));
+    console.log(`Rows loaded: ${rows.length}`);
+    console.log(`Plot: ${htmlPath}`);
+    return;
+  }
+
   const rows = [];
   let simulations = 0;
 
@@ -116,6 +130,7 @@ function simulate(params) {
   const bottomFiveAvg = bottomFive.reduce((sum, cow) => sum + cow.power, 0) / bottomFive.length;
   const top5SharePct = runaway ? 100 : (topFivePower / totalPower) * 100;
   const topBottomRatio = runaway ? Number.MAX_VALUE : topFiveAvg / Math.max(0.000001, bottomFiveAvg);
+  const averageEnergy = cows.reduce((sum, cow) => sum + cow.energy, 0) / cows.length;
   const currentTopTen = topTenHistory[topTenHistory.length - 1];
   const stability20 = overlapPct(currentTopTen, snapshotAgo(topTenHistory, 20));
   const log10TotalPower = safeLog10(totalPower);
@@ -130,6 +145,7 @@ function simulate(params) {
     top10Stability20Pct: stability20,
     topBottomRatio,
     log10TopBottomRatio,
+    averageEnergy,
     oligarchyScore,
   };
 }
@@ -287,6 +303,7 @@ function toCsv(rows) {
     "top10Stability20Pct",
     "topBottomRatio",
     "log10TopBottomRatio",
+    "averageEnergy",
     "oligarchyScore",
   ];
   return [
@@ -300,6 +317,44 @@ function csvCell(value) {
     return Number.isInteger(value) ? String(value) : value.toFixed(6);
   }
   return `"${String(value).replaceAll('"', '""')}"`;
+}
+
+function readCsv(filePath) {
+  const text = fs.readFileSync(filePath, "utf8").trim();
+  const lines = text.split("\n");
+  const columns = lines[0].split(",");
+  return lines.slice(1).map((line) => {
+    const values = splitCsvLine(line);
+    const row = Object.fromEntries(columns.map((column, index) => [column, stripQuotes(values[index])]));
+    for (const key of columns) {
+      if (key !== "mode") {
+        row[key] = Number(row[key]);
+      }
+    }
+    return row;
+  });
+}
+
+function splitCsvLine(line) {
+  const cells = [];
+  let cell = "";
+  let quoted = false;
+  for (const char of line) {
+    if (char === "\"") {
+      quoted = !quoted;
+    } else if (char === "," && !quoted) {
+      cells.push(cell);
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+  cells.push(cell);
+  return cells;
+}
+
+function stripQuotes(value) {
+  return String(value || "").replace(/^"|"$/g, "");
 }
 
 function reportHtml(rows) {
@@ -318,8 +373,11 @@ function reportHtml(rows) {
     p { color:var(--muted); line-height:1.45; }
     .controls, .panel { border:1px solid var(--line); border-radius:8px; background:var(--panel); }
     .controls { display:flex; gap:14px; flex-wrap:wrap; align-items:center; padding:12px; margin:16px 0; }
+    .range-filters { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; padding:12px; margin:-6px 0 16px; border:1px solid var(--line); border-radius:8px; background:var(--panel); overflow:hidden; }
+    .range-filters label { min-width:0; }
+    .range-pair { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:6px; min-width:0; }
     label { display:grid; gap:5px; color:var(--muted); font-size:.86rem; }
-    select { min-height:36px; border:1px solid var(--line); border-radius:8px; background:white; padding:0 10px; color:var(--ink); }
+    select, input[type="number"] { width:100%; min-width:0; min-height:36px; border:1px solid var(--line); border-radius:8px; background:white; padding:0 10px; color:var(--ink); }
     canvas { display:block; width:100%; border:1px solid var(--line); border-radius:8px; background:#fffaf0; }
     .stats { display:grid; grid-template-columns:repeat(4, minmax(130px, 1fr)); gap:10px; margin:16px 0; }
     .stat { border:1px solid var(--line); border-radius:8px; padding:12px; background:var(--panel); }
@@ -331,7 +389,8 @@ function reportHtml(rows) {
     th, td { padding:8px 9px; border-bottom:1px solid #e5decf; text-align:right; font-size:.86rem; }
     th:first-child, td:first-child { text-align:left; }
     th { background:#efe7d6; }
-    @media (max-width: 760px) { .stats { grid-template-columns:1fr 1fr; } }
+    @media (max-width: 760px) { .stats { grid-template-columns:1fr 1fr; } .range-filters { grid-template-columns:1fr 1fr; } }
+    @media (max-width: 520px) { .range-filters { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
@@ -354,6 +413,7 @@ function reportHtml(rows) {
           <option value="forgetfulness">Forgetfulness</option>
           <option value="intensity">Intensity</option>
           <option value="propensity">Habituation</option>
+          <option value="averageEnergy">Average energy</option>
         </select>
       </label>
       <label>Runaways
@@ -362,6 +422,38 @@ function reportHtml(rows) {
           <option value="exclude">Exclude</option>
           <option value="only">Only</option>
         </select>
+      </label>
+    </div>
+    <div class="range-filters" aria-label="Range filters">
+      <label>Tiredness range
+        <span class="range-pair">
+          <input id="tirednessMin" type="number" step="0.1" aria-label="Minimum tiredness">
+          <input id="tirednessMax" type="number" step="0.1" aria-label="Maximum tiredness">
+        </span>
+      </label>
+      <label>Forgetfulness range
+        <span class="range-pair">
+          <input id="forgetfulnessMin" type="number" step="0.1" aria-label="Minimum forgetfulness">
+          <input id="forgetfulnessMax" type="number" step="0.1" aria-label="Maximum forgetfulness">
+        </span>
+      </label>
+      <label>log10 top/bottom range
+        <span class="range-pair">
+          <input id="ratioMin" type="number" step="0.1" aria-label="Minimum log10 top bottom ratio">
+          <input id="ratioMax" type="number" step="0.1" aria-label="Maximum log10 top bottom ratio">
+        </span>
+      </label>
+      <label>Cows per event range
+        <span class="range-pair">
+          <input id="groupSizeMin" type="number" step="1" aria-label="Minimum cows per event">
+          <input id="groupSizeMax" type="number" step="1" aria-label="Maximum cows per event">
+        </span>
+      </label>
+      <label>Average energy range
+        <span class="range-pair">
+          <input id="energyMin" type="number" step="0.05" aria-label="Minimum average energy">
+          <input id="energyMax" type="number" step="0.05" aria-label="Maximum average energy">
+        </span>
       </label>
     </div>
     <div id="stats" class="stats"></div>
@@ -378,12 +470,43 @@ function reportHtml(rows) {
     const runawaySelect = document.querySelector("#runawaySelect");
     const stats = document.querySelector("#stats");
     const bestTable = document.querySelector("#bestTable");
+    const rangeFilters = [
+      { key: "tiredness", min: document.querySelector("#tirednessMin"), max: document.querySelector("#tirednessMax") },
+      { key: "forgetfulness", min: document.querySelector("#forgetfulnessMin"), max: document.querySelector("#forgetfulnessMax") },
+      { key: "log10TopBottomRatio", min: document.querySelector("#ratioMin"), max: document.querySelector("#ratioMax") },
+      { key: "groupSize", min: document.querySelector("#groupSizeMin"), max: document.querySelector("#groupSizeMax") },
+      { key: "averageEnergy", min: document.querySelector("#energyMin"), max: document.querySelector("#energyMax") },
+    ];
+
+    function initializeRangeFilters() {
+      for (const filter of rangeFilters) {
+        const range = extent(DATA, filter.key);
+        const hasValues = DATA.some((row) => Number.isFinite(row[filter.key]));
+        filter.min.disabled = !hasValues;
+        filter.max.disabled = !hasValues;
+        filter.min.value = hasValues ? (Number.isInteger(range[0]) ? String(range[0]) : range[0].toFixed(2)) : "";
+        filter.max.value = hasValues ? (Number.isInteger(range[1]) ? String(range[1]) : range[1].toFixed(2)) : "";
+        filter.min.addEventListener("input", draw);
+        filter.max.addEventListener("input", draw);
+      }
+    }
 
     function filtered() {
       const mode = runawaySelect.value;
-      if (mode === "exclude") return DATA.filter((row) => row.runaway < 0.5);
-      if (mode === "only") return DATA.filter((row) => row.runaway >= 0.5);
-      return DATA;
+      let rows = DATA;
+      if (mode === "exclude") rows = rows.filter((row) => row.runaway < 0.5);
+      if (mode === "only") rows = rows.filter((row) => row.runaway >= 0.5);
+      return rows.filter(rowPassesRangeFilters);
+    }
+
+    function rowPassesRangeFilters(row) {
+      return rangeFilters.every((filter) => {
+        const min = Number(filter.min.value);
+        const max = Number(filter.max.value);
+        const value = row[filter.key];
+        if (!Number.isFinite(value)) return true;
+        return (!Number.isFinite(min) || value >= min) && (!Number.isFinite(max) || value <= max);
+      });
     }
 
     function draw() {
@@ -457,6 +580,7 @@ function reportHtml(rows) {
         ["Rows", rows.length.toLocaleString()],
         ["Runaways", rows.filter((row) => row.runaway >= 0.5).length.toLocaleString()],
         ["Avg log power", mean(rows, "log10TotalPower").toFixed(1)],
+        ["Avg energy", mean(rows, "averageEnergy").toFixed(2)],
         ["Avg oligarchy", mean(rows, "oligarchyScore").toFixed(1)],
       ].map(([label, value]) => '<div class="stat"><span>' + label + '</span><strong>' + value + '</strong></div>').join("");
     }
@@ -477,10 +601,12 @@ function reportHtml(rows) {
     }
 
     function mean(rows, key) {
-      return rows.length ? rows.reduce((sum, row) => sum + row[key], 0) / rows.length : 0;
+      const values = rows.map((row) => row[key]).filter(Number.isFinite);
+      return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
     }
 
     function normalize(value, range) {
+      if (!Number.isFinite(value)) return 0;
       return (value - range[0]) / Math.max(0.000001, range[1] - range[0]);
     }
 
@@ -504,12 +630,14 @@ function reportHtml(rows) {
         top5SharePct: "top 5 share (%)",
         top10Stability20Pct: "top 10 stability (%)",
         log10TopBottomRatio: "log10 top/bottom 5 ratio",
+        averageEnergy: "average energy",
       }[metric] || metric;
     }
 
     metricSelect.addEventListener("change", draw);
     colorSelect.addEventListener("change", draw);
     runawaySelect.addEventListener("change", draw);
+    initializeRangeFilters();
     draw();
   </script>
 </body>
@@ -523,12 +651,14 @@ function summary(rows) {
     { metric: "rows", value: rows.length },
     { metric: "runaways", value: runaway },
     { metric: "avg log10 power", value: average(finite, "log10TotalPower").toFixed(2) },
+    { metric: "avg energy", value: average(finite, "averageEnergy").toFixed(2) },
     { metric: "avg oligarchy", value: average(finite, "oligarchyScore").toFixed(2) },
   ];
 }
 
 function average(rows, key) {
-  return rows.length ? rows.reduce((sum, row) => sum + row[key], 0) / rows.length : 0;
+  const values = rows.map((row) => row[key]).filter(Number.isFinite);
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
 }
 
 function seedFromParams(params) {

@@ -94,7 +94,7 @@ function initialize() {
   state.time = 0;
   state.events = [];
   state.layoutMode = "fixed";
-  setMode("manual");
+  setMode("random");
   state.topTenHistory = [currentTopTenIds()];
   state.topTenStability = {
     1: 1,
@@ -174,7 +174,9 @@ function createEvent(participantIds, source = "manual", options = {}) {
     gain: [...gains.values()].reduce((sum, value) => sum + value, 0),
   });
   state.events = state.events.slice(0, 36);
-  state.selected.clear();
+  if (source !== "manual") {
+    state.selected.clear();
+  }
   if (settingsForEvent.trackStability) {
     recordTopTenStability();
   }
